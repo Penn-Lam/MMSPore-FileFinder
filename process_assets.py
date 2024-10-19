@@ -25,15 +25,14 @@ from PIL import Image
 from tqdm import trange
 # 导入Transformers库中的AutoModelForZeroShotImageClassification类，用于零样本图像分类任务
 from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
+from clip import clip
 
 from config import *
 
 logger = logging.getLogger(__name__)
 
 # 替换模型加载
-model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
-param_dict = ms.load_checkpoint(MODEL_NAME + ".ckpt")
-ms.load_param_into_net(model, param_dict)
+model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
 
 # 修改设备配置
 ms.set_context(device_target=DEVICE)
@@ -44,14 +43,14 @@ logger.info("Model loaded.")
 
 
 def get_image_feature(images):
-    """
-    :param images: 图片
-    :return: feature
-    """
     feature = None
     try:
-        inputs = processor(images=images, return_tensors="ms")["pixel_values"]
-        feature = model.get_image_features(inputs)
+        if isinstance(images, list):
+            inputs = [preprocess(img) for img in images]
+            inputs = np.stack(inputs)
+        else:
+            inputs = preprocess(images).unsqueeze(0)
+        feature = model.encode_image(inputs)
         return feature.asnumpy()
     except Exception as e:
         logger.warning(f"处理图片报错：{repr(e)}")
@@ -187,8 +186,8 @@ def process_text(input_text):
     if not input_text:
         return None
     try:
-        text = processor(text=input_text, return_tensors="ms", padding=True)["input_ids"]
-        feature = model.get_text_features(text).asnumpy()
+        text = clip.tokenize([input_text])
+        feature = model.encode_text(text).asnumpy()
     except Exception as e:
         logger.warning(f"处理文字报错：{repr(e)}")
         traceback.print_stack()
@@ -249,16 +248,18 @@ def match_batch(
     :param negative_threshold: int/float, 反向提示分数阈值，低于此分数才显示
     :return: [<class 'numpy.nparray'>], 提示词和每个图片余弦相似度列表，里面每个元素的shape=(1, 1)，如果小于正向提示分数阈值或大于反向提示分数阈值则会置0
     """
-    new_features = ms.Tensor(normalize_features(image_features))
-    new_text_positive_feature = ms.Tensor(positive_feature / np.linalg.norm(positive_feature))
-    positive_scores = ops.matmul(new_features, new_text_positive_feature.T)
+    image_features = ms.Tensor(image_features)
+    positive_feature = ms.Tensor(positive_feature)
+    
+    # 计算余弦相似度
+    similarity = ops.cosine_similarity(image_features, positive_feature)
+    
+    # 应用阈值
+    scores = ops.where(similarity < positive_threshold / 100, ms.Tensor(0), similarity)
     
     if negative_feature is not None:
-        new_text_negative_feature = ms.Tensor(negative_feature / np.linalg.norm(negative_feature))
-        negative_scores = ops.matmul(new_features, new_text_negative_feature.T)
-    
-    scores = ops.where(positive_scores < positive_threshold / 100, ms.Tensor(0), positive_scores)
-    if negative_feature is not None:
-        scores = ops.where(negative_scores > negative_threshold / 100, ms.Tensor(0), scores)
+        negative_feature = ms.Tensor(negative_feature)
+        negative_similarity = ops.cosine_similarity(image_features, negative_feature)
+        scores = ops.where(negative_similarity > negative_threshold / 100, ms.Tensor(0), scores)
     
     return scores.asnumpy()
