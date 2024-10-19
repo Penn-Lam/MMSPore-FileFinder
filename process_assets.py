@@ -32,7 +32,7 @@ from config import *
 logger = logging.getLogger(__name__)
 
 # 替换模型加载
-model, preprocess = clip.load(MODEL_NAME, device=DEVICE, weight_path=MODEL_WEIGHT_PATH)
+model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
 
 # 修改设备配置
 ms.set_context(device_target=DEVICE)
@@ -47,9 +47,9 @@ def get_image_feature(images):
     try:
         if isinstance(images, list):
             inputs = [preprocess(img) for img in images]
-            inputs = np.stack(inputs)
+            inputs = ms.Tensor(np.stack(inputs))
         else:
-            inputs = preprocess(images).unsqueeze(0)
+            inputs = ms.Tensor(preprocess(images).unsqueeze(0))
         feature = model.encode_image(inputs)
         return feature.asnumpy()
     except Exception as e:
