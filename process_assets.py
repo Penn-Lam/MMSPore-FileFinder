@@ -32,7 +32,7 @@ from config import *
 logger = logging.getLogger(__name__)
 
 # 替换模型加载
-model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
+model, preprocess = clip.load(MODEL_NAME, device=DEVICE, weight_path=MODEL_WEIGHT_PATH)
 
 # 修改设备配置
 ms.set_context(device_target=DEVICE)
