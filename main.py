@@ -6,6 +6,15 @@ from functools import wraps
 from io import BytesIO
 
 from flask import Flask, abort, jsonify, redirect, request, send_file, session, url_for
+"""
+base64：用于编码和解码二进制数据，常用于将图片、视频等多媒体文件转换成字符串形式传输。
+logging：提供日志记录功能，帮助开发者记录程序运行过程中的信息。
+shutil：提供高级文件操作方法，如复制、移动文件等。
+threading：支持线程创建和管理，可以实现多线程并发执行任务。
+functools.wraps：装饰器工具，用于保留原函数的元数据。
+flask：轻量级Web框架，用于构建Web应用。
+io.BytesIO：提供内存中的二进制流操作，方便读写二进制数据。
+"""
 
 from config import *
 from database import get_image_path_by_id, is_video_exist, get_pexels_video_count

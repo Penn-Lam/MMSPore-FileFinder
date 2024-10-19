@@ -6,7 +6,15 @@ from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
 from models import Image, Video, PexelsVideo
+"""
+导入了datetime用于处理日期和时间相关操作。
+导入logging库用于记录日志信息。
+通过os库获取操作系统功能。
+从sqlalchemy库导入asc（升序排列）和Session（数据库会话管理）。
+从本地models模块导入了Image、Video和PexelsVideo类，这些类是用于ORM映射的数据模型。
+"""
 
+# 获取名为 __name__ 的日志记录器，通常用于记录应用程序的日志信息。这有助于调试和监控程序运行状态。
 logger = logging.getLogger(__name__)
 
 

@@ -1,5 +1,7 @@
 import os
-
+"""
+该函数load_dotenv()主要用于从环境变量文件（通常为.env）中加载配置信息到当前环境中。这样做的目的是安全地管理应用程序的敏感信息，如API密钥、数据库密码等，避免将这些信息硬编码在代码中。加载后，可以通过os.getenv()等方式在代码中访问这些环境变量。
+"""
 from dotenv import load_dotenv
 
 # 加载.env文件中的环境变量
@@ -11,7 +13,7 @@ PORT = int(os.getenv('PORT', 8085))  # 监听端口
 
 # *****扫描配置*****
 # Windows系统的路径写法例子：'D:/照片'
-ASSETS_PATH = tuple(os.getenv('ASSETS_PATH', '/home,/srv').split(','))  # 素材所在的目录，绝对路径，逗号分隔
+ASSETS_PATH = tuple(os.getenv('ASSETS_PATH', 'C:/Users,/Lemon,/Pictures').split(','))  # 素材所在的目录，绝对路径，逗号分隔
 SKIP_PATH = tuple(os.getenv('SKIP_PATH', '/tmp').split(','))  # 跳过扫描的目录，绝对路径，逗号分隔
 IMAGE_EXTENSIONS = tuple(os.getenv('IMAGE_EXTENSIONS', '.jpg,.jpeg,.png,.gif,.heic,.webp,.bmp').split(','))  # 支持的图片拓展名，逗号分隔，请填小写
 VIDEO_EXTENSIONS = tuple(os.getenv('VIDEO_EXTENSIONS', '.mp4,.flv,.mov,.mkv,.webm,.avi').split(','))  # 支持的视频拓展名，逗号分隔，请填小写
@@ -38,7 +40,7 @@ AUTO_SAVE_INTERVAL = int(os.getenv('AUTO_SAVE_INTERVAL', 100))  # 扫描自动�
 # 英文小模型： "openai/clip-vit-base-patch16"
 # 英文大模型："openai/clip-vit-large-patch14-336"
 MODEL_NAME = os.getenv('MODEL_NAME', "OFA-Sys/chinese-clip-vit-base-patch16")  # CLIP模型
-DEVICE = os.getenv('DEVICE', 'cpu')  # 推理设备，cpu/cuda/mps，建议先跑benchmark.py看看cpu还是显卡速度更快。因为数据搬运也需要时间，所以不一定是GPU更快。
+DEVICE = os.getenv('DEVICE', 'CPU')  # 'CPU', 'GPU', 'Ascend'
 
 # *****搜索配置*****
 CACHE_SIZE = int(os.getenv('CACHE_SIZE', 64))  # 搜索缓存条目数量，表示缓存最近的n次搜索结果，0表示不缓存。缓存保存在内存中。图片搜索和视频搜索分开缓存。重启程序或扫描完成会清空缓存，或前端点击清空缓存（前端按钮已隐藏）。

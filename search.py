@@ -4,6 +4,8 @@ import time
 from functools import lru_cache
 
 import numpy as np
+import mindspore as ms
+from mindspore import ops
 
 from config import *
 from database import (
