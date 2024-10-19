@@ -1,10 +1,5 @@
-# MaterialSearch 本地素材搜索
+# MMSPore-FileFinder
 
-[**中文**](./README.md) | [**English**](./README_EN.md)
-
-扫描本地的图片以及视频，并且可以用自然语言进行查找。
-
-在线Demo：https://chn-lee-yumi.github.io/MaterialSearchWebDemo/
 
 ## 功能
 
@@ -16,11 +11,6 @@
 
 ## 部署说明
 
-### Windows整合包
-
-[在这里下载整合包](https://github.com/chn-lee-yumi/MaterialSearch/releases/latest)`MaterialSearchWindows.7z`，解压后请阅读里面的`使用说明.txt`。
-
-整合包自带`OFA-Sys/chinese-clip-vit-base-patch16`模型。
 
 ### 通过源码部署
 
@@ -39,24 +29,7 @@
 
 如果想使用"下载视频片段"的功能，需要安装`ffmpeg`。如果是Windows系统，记得把`ffmpeg.exe`所在目录加入环境变量`PATH`，可以参考：[Bing搜索](https://cn.bing.com/search?q=windows+%E5%A6%82%E4%BD%95%E6%B7%BB%E5%8A%A0+path+%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)。
 
-### 通过Docker部署
 
-目前只有一个Docker镜像，支持`amd64`和`arm64`，打包了默认模型（`OFA-Sys/chinese-clip-vit-base-patch16`）并且支持GPU（仅`amd64`架构的镜像支持）。 如有更多需求欢迎提issue。
-
-启动镜像前，你需要准备：
-
-1. 数据库的保存路径
-2. 你的扫描路径以及打算挂载到容器内的哪个路径
-3. 你可以通过修改`docker-compose.yml`里面的`environment`和`volumes`来进行配置。
-4. 如果打算使用GPU，则需要取消注释`docker-compose.yml`里面的对应部分
-
-具体请参考`docker-compose.yml`，已经写了详细注释。
-
-最后执行`docker-compose up -d`启动容器即可。
-
-注意：
-- 不推荐对容器设置内存限制，否则可能会出现奇怪的问题。比如[这个issue](https://github.com/chn-lee-yumi/MaterialSearch/issues/6)。
-- 容器默认设置了环境变量`TRANSFORMERS_OFFLINE=1`，也就是说运行时不会连接huggingface检查模型版本。如果你想更换容器内默认的模型，需要修改`.env`覆盖该环境变量为`TRANSFORMERS_OFFLINE=0`。
 
 ## 配置说明
 
@@ -86,13 +59,7 @@ https_proxy=http://127.0.0.1:7070
 
 注意：`ASSETS_PATH`不推荐设置为远程目录（如SMB/NFS），可能会导致扫描速度变慢。
 
-## 问题解答
 
-如遇问题，请先仔细阅读本文档。如果找不到答案，请在issue中搜索是否有类似问题。如果没有，可以新开一个issue，**详细说明你遇到的问题，加上你做过的尝试和思考，附上报错内容和截图，并说明你使用的系统（Windows/Linux/MacOS）和你的配置（配置在执行`main.py`的时候会打印出来）**。
-
-本人只负责本项目的功能、代码和文档等相关问题（例如功能不正常、代码报错、文档内容有误等）。**运行环境问题请自行解决（例如：如何配置Python环境，无法使用GPU加速，如何安装ffmpeg等）。**
-
-本人做此项目纯属“为爱发电”（也就是说，其实本人并没有义务解答你的问题）。为了提高问题解决效率，请尽量在开issue时一次性提供尽可能多的信息。如问题已解决，请记得关闭issue。一个星期无人回复的issue会被关闭。如果在被回复前已自行解决问题，推荐留下解决步骤，赠人玫瑰，手有余香。
 
 ## 硬件要求
 
@@ -114,8 +81,4 @@ https_proxy=http://127.0.0.1:7070
 2. 点击图片进行放大时，部分图片无法显示，原因是浏览器不支持这一类型的文件（例如tiff格式的图片）。小图可以正常显示，因为转换成缩略图的时候使用了浏览器支持的格式。大图使用的是原文件。
 3. 搜视频时，如果显示的视频太多且视频体积太大，电脑可能会卡，这是正常现象。建议搜索视频时不要超过12个。
 
-## 关于PR
 
-欢迎提PR！不过为了避免无意义的劳动，建议先提issue讨论一下。
-
-提PR前请确保代码已经格式化。
