@@ -1,23 +1,45 @@
 # 预处理图片和视频，建立索引，加快搜索速度
+
+# 导入并发执行器模块，用于实现多线程或多进程任务
 import concurrent.futures
+# 导入日志模块，用于记录程序运行过程中的信息
 import logging
+# 导入错误跟踪模块，用于获取和打印异常堆栈信息
 import traceback
 
+# 导入MindSpore库
+import mindspore as ms
+from mindspore import nn, ops
+from mindspore.dataset import vision
+from mindspore.dataset.transforms import Compose
+
+# 导入OpenCV库，用于图像与视频处理
 import cv2
+# 导入NumPy库，用于科学计算，特别是数组操作
 import numpy as np
+# 导入requests库，用于发送HTTP请求
 import requests
-import torch
+# 导入Pillow库中的Image类，用于处理图像文件
 from PIL import Image
+# 导入进度条库，用于显示循环或迭代过程中的进度
 from tqdm import trange
+# 导入Transformers库中的AutoModelForZeroShotImageClassification类，用于零样本图像分类任务
 from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
 from config import *
 
 logger = logging.getLogger(__name__)
 
-logger.info("Loading model...")
-model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME).to(torch.device(DEVICE))
+# 替换模型加载
+model = AutoModelForZeroShotImageClassification.from_pretrained(MODEL_NAME)
+param_dict = ms.load_checkpoint(MODEL_NAME + ".ckpt")
+ms.load_param_into_net(model, param_dict)
+
+# 修改设备配置
+ms.set_context(device_target=DEVICE)
+
 processor = AutoProcessor.from_pretrained(MODEL_NAME)
+
 logger.info("Model loaded.")
 
 
@@ -28,8 +50,9 @@ def get_image_feature(images):
     """
     feature = None
     try:
-        inputs = processor(images=images, return_tensors="pt")["pixel_values"].to(torch.device(DEVICE))
-        feature = model.get_image_features(inputs).detach().cpu().numpy()
+        inputs = processor(images=images, return_tensors="ms")["pixel_values"]
+        feature = model.get_image_features(inputs)
+        return feature.asnumpy()
     except Exception as e:
         logger.warning(f"处理图片报错：{repr(e)}")
         traceback.print_stack()
@@ -49,8 +72,6 @@ def get_image_data(path: str, ignore_small_images: bool = True):
             width, height = image.size
             if width < IMAGE_MIN_WIDTH or height < IMAGE_MIN_HEIGHT:
                 return None
-                # processor 中也会这样预处理 Image
-        # 在这里提前转为 np.array 避免到时候抛出异常
         image = image.convert('RGB')
         image = np.array(image)
         return image
@@ -120,11 +141,6 @@ def get_frames(video: cv2.VideoCapture):
     for current_frame in trange(
             0, total_frames, FRAME_INTERVAL * frame_rate, desc="当前进度", unit="frame"
     ):
-        # 在 FRAME_INTERVAL 为 2（默认值），frame_rate 为 24
-        # 即 FRAME_INTERVAL * frame_rate == 48 时测试
-        # 直接设置当前帧的运行效率低于使用 grab 跳帧
-        # 如果需要跳的帧足够多，也许直接设置效率更高
-        # video.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
         ret, frame = video.read()
         if not ret:
             break
@@ -171,8 +187,8 @@ def process_text(input_text):
     if not input_text:
         return None
     try:
-        text = processor(text=input_text, return_tensors="pt", padding=True)["input_ids"].to(torch.device(DEVICE))
-        feature = model.get_text_features(text).detach().cpu().numpy()
+        text = processor(text=input_text, return_tensors="ms", padding=True)["input_ids"]
+        feature = model.get_text_features(text).asnumpy()
     except Exception as e:
         logger.warning(f"处理文字报错：{repr(e)}")
         traceback.print_stack()
@@ -189,10 +205,6 @@ def match_text_and_image(text_feature, image_feature):
     score = (image_feature @ text_feature.T) / (
             np.linalg.norm(image_feature) * np.linalg.norm(text_feature)
     )
-    # 上面的计算等价于下面三步：
-    # new_image_feature = image_feature / np.linalg.norm(image_feature)
-    # new_text_feature = text_feature / np.linalg.norm(text_feature)
-    # score = (new_image_feature @ new_text_feature.T)
     return score
 
 
@@ -202,7 +214,7 @@ def normalize_features(features):
     :param features: [<class 'numpy.nparray'>], 特征
     :return: <class 'numpy.nparray'>, 归一化后的特征
     """
-    return features / np.linalg.norm(features, axis=1, keepdims=True)
+    return ops.L2Normalize(axis=1)(ms.Tensor(features)).asnumpy()
 
 
 def multithread_normalize(features):
@@ -213,14 +225,11 @@ def multithread_normalize(features):
     """
     num_threads = os.cpu_count()
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-        # 将图像特征分成等分，每个线程处理一部分
         chunk_size = len(features) // num_threads
         chunks = [
             features[i: i + chunk_size] for i in range(0, len(features), chunk_size)
         ]
-        # 并发执行特征归一化
         normalized_chunks = executor.map(normalize_features, chunks)
-    # 将处理后的特征重新合并
     return np.concatenate(list(normalized_chunks))
 
 
@@ -240,18 +249,16 @@ def match_batch(
     :param negative_threshold: int/float, 反向提示分数阈值，低于此分数才显示
     :return: [<class 'numpy.nparray'>], 提示词和每个图片余弦相似度列表，里面每个元素的shape=(1, 1)，如果小于正向提示分数阈值或大于反向提示分数阈值则会置0
     """
-    # 计算余弦相似度
-    if len(image_features) > 1024:  # 多线程只对大矩阵效果好，1024是随便写的
-        new_features = multithread_normalize(image_features)
-    else:
-        new_features = normalize_features(image_features)
-    new_text_positive_feature = positive_feature / np.linalg.norm(positive_feature)
-    positive_scores = new_features @ new_text_positive_feature.T
+    new_features = ms.Tensor(normalize_features(image_features))
+    new_text_positive_feature = ms.Tensor(positive_feature / np.linalg.norm(positive_feature))
+    positive_scores = ops.matmul(new_features, new_text_positive_feature.T)
+    
     if negative_feature is not None:
-        new_text_negative_feature = negative_feature / np.linalg.norm(negative_feature)
-        negative_scores = new_features @ new_text_negative_feature.T
-    # 根据阈值进行过滤
-    scores = np.where(positive_scores < positive_threshold / 100, 0, positive_scores)
+        new_text_negative_feature = ms.Tensor(negative_feature / np.linalg.norm(negative_feature))
+        negative_scores = ops.matmul(new_features, new_text_negative_feature.T)
+    
+    scores = ops.where(positive_scores < positive_threshold / 100, ms.Tensor(0), positive_scores)
     if negative_feature is not None:
-        scores = np.where(negative_scores > negative_threshold / 100, 0, scores)
-    return scores
+        scores = ops.where(negative_scores > negative_threshold / 100, ms.Tensor(0), scores)
+    
+    return scores.asnumpy()

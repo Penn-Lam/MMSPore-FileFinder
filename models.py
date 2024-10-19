@@ -1,5 +1,10 @@
 import os
 
+"""
+导入SQLAlchemy相关模块及配置文件中的数据库URL。
+从sqlalchemy库导入了用于定义数据库模型的字段类型如二进制数据(BINARY)、日期时间(DateTime)等。
+准备数据库连接和ORM所需的基本组件，包括创建引擎(create_engine)、声明基类(declarative_base)和会话(sessionmaker)。这些准备工作为后续定义和操作数据库模型提供了支持。
+"""
 from sqlalchemy import BINARY, Column, DateTime, Integer, String
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -54,7 +59,7 @@ class Video(BaseModel):
 
 
 class PexelsVideo(BaseModelPexelsVideo):
-    __tablename__ = "PexelsVideo"
+    __tablename__ = "PexelsVideo"  # 在线视频的意思
     id = Column(Integer, primary_key=True)
     title = Column(String(128))  # 标题
     description = Column(String(256))  # 视频描述
@@ -63,3 +68,4 @@ class PexelsVideo(BaseModelPexelsVideo):
     thumbnail_loc = Column(String(256), index=True)  # 视频缩略图链接
     content_loc = Column(String(256))  # 视频链接
     thumbnail_feature = Column(BINARY)  # 视频缩略图特征
+
