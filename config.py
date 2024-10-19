@@ -41,6 +41,7 @@ AUTO_SAVE_INTERVAL = int(os.getenv('AUTO_SAVE_INTERVAL', 100))  # 扫描自动�
 # 英文大模型："openai/clip-vit-large-patch14-336"
 MODEL_NAME = os.getenv('MODEL_NAME', "./ViT-B-32.ckpt")  # CLIP模型路径
 DEVICE = os.getenv('DEVICE', 'CPU')  # 'CPU', 'GPU', 'Ascend'
+MODEL_WEIGHT_PATH = os.getenv('MODEL_WEIGHT_PATH', "./ViT-B-32.ckpt")  # CLIP模型权重文件路径
 
 # *****搜索配置*****
 CACHE_SIZE = int(os.getenv('CACHE_SIZE', 64))  # 搜索缓存条目数量，表示缓存最近的n次搜索结果，0表示不缓存。缓存保存在内存中。图片搜索和视频搜索分开缓存。重启程序或扫描完成会清空缓存，或前端点击清空缓存（前端按钮已隐藏）。
