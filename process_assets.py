@@ -12,6 +12,7 @@ import mindspore as ms
 from mindspore import nn, ops
 from mindspore.dataset import vision
 from mindspore.dataset.transforms import Compose
+from mindspore import load_checkpoint, load_param_into_net
 
 # 导入OpenCV库，用于图像与视频处理
 import cv2
@@ -31,8 +32,17 @@ from config import *
 
 logger = logging.getLogger(__name__)
 
-# 替换模型加载
-model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
+# 修改模型加载部分
+def load_clip_model():
+    model, _ = clip.create_model(MODEL_NAME, device=DEVICE)
+    if os.path.exists(MODEL_WEIGHT_PATH):
+        param_dict = load_checkpoint(MODEL_WEIGHT_PATH)
+        load_param_into_net(model, param_dict)
+    else:
+        logger.warning(f"模型权重文件 {MODEL_WEIGHT_PATH} 不存在，使用默认初始化权重。")
+    return model, clip.load_preprocess()
+
+model, preprocess = load_clip_model()
 
 # 修改设备配置
 ms.set_context(device_target=DEVICE)
