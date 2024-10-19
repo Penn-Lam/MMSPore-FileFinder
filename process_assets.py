@@ -34,13 +34,13 @@ logger = logging.getLogger(__name__)
 
 # 修改模型加载部分
 def load_clip_model():
-    model, _ = clip.create_model(MODEL_NAME, device=DEVICE)
+    model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
     if os.path.exists(MODEL_WEIGHT_PATH):
         param_dict = load_checkpoint(MODEL_WEIGHT_PATH)
         load_param_into_net(model, param_dict)
     else:
         logger.warning(f"模型权重文件 {MODEL_WEIGHT_PATH} 不存在，使用默认初始化权重。")
-    return model, clip.load_preprocess()
+    return model, preprocess
 
 model, preprocess = load_clip_model()
 
