@@ -72,9 +72,5 @@
     "uploadSuccess": "Upload successful",
     "imgIdNotFound": "Unable to extract image ID from img_url. This should not happen. Please report to the developer.",
     "searching": "Searching..."
-  },
-  "footer": {
-    "description": "This project is open-sourced on GitHub: ",
-    "description2": "(if you like, please star~)"
   }
 }

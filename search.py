@@ -43,7 +43,7 @@ def search_image_by_feature(
         negative_threshold=NEGATIVE_THRESHOLD,
 ):
     """
-    通过特征搜索图片
+    通过特征搜索图
     :param positive_feature: np.array, 正向特征向量
     :param negative_feature: np.array, 反向特征向量
     :param positive_threshold: int/float, 正向阈值
@@ -87,7 +87,10 @@ def search_image_by_text(
     :return: list[dict], 搜索结果列表
     """
     positive_feature = process_text(positive_prompt)
-    negative_feature = process_text(negative_prompt)
+    if positive_feature is None:
+        logger.warning("无法处理正向提示词")
+        return []
+    negative_feature = process_text(negative_prompt) if negative_prompt else None
     return search_image_by_feature(positive_feature, negative_feature, positive_threshold, negative_threshold)
 
 
@@ -205,7 +208,10 @@ def search_video_by_text(
     :return: list[dict], 搜索结果列表
     """
     positive_feature = process_text(positive_prompt)
-    negative_feature = process_text(negative_prompt)
+    if positive_feature is None:
+        logger.warning("无法处理正向提示词")
+        return []
+    negative_feature = process_text(negative_prompt) if negative_prompt else None
     return search_video_by_feature(positive_feature, negative_feature, positive_threshold, negative_threshold)
 
 
@@ -349,3 +355,5 @@ if __name__ == '__main__':
             print(f'range: {start_time} ~ {end_time}')
             print(f'score: {item["score"]:.3f}')
             print('-' * 30)
+
+

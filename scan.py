@@ -144,12 +144,12 @@ class Scanner:
         while True:
             time.sleep(5)
             if self.is_scanning:
-                self.scanned = True  # 设置扫描标记，这样如果手动扫描在自动扫描时间段内结束，也不会重新扫描
+                self.scanned = True  # 设置扫���标记，这样如果手动扫描在自动扫描时间段内结束，也不会重新扫描
             elif not self.is_current_auto_scan_time():
                 self.scanned = False  # 已经过了自动扫描时间段，重置扫描标记
             elif not self.scanned and self.is_current_auto_scan_time():
                 self.logger.info("触发自动扫描")
-                self.scanned = True  # 表示本目标时间段内已进行扫描，防止同个时��段内扫描多次
+                self.scanned = True  # 表示本目标时间段内已进行扫描，防止同个时段内扫描多次
                 self.scan(True)
 
     def scan_dir(self):
@@ -178,7 +178,7 @@ class Scanner:
     def scan(self, auto=False):
         """
         扫描资源。如果存在assets.pickle，则直接读取并开始扫描。如果不存在，则先读取所有文件路径，并写入assets.pickle，然后开始扫描。
-        每100个文件重新保存一次assets.pickle，如果程序被中断，下次可以从断点处继续���描。扫描完成后删除assets.pickle并清缓存。
+        每100个文件重新保存一次assets.pickle，如果程序被中断，下次可以从断点处继续扫描。扫描完成后删除assets.pickle并清缓存。
         :param auto: 是否由AUTO_SCAN触发的
         """
         self.logger.info("开始扫描")

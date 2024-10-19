@@ -13,6 +13,7 @@ from mindspore import nn, ops
 from mindspore.dataset import vision
 from mindspore.dataset.transforms import Compose
 from mindspore import load_checkpoint, load_param_into_net
+from mindspore import Tensor
 
 # 导入OpenCV库，用于图像与视频处理
 import cv2
@@ -27,27 +28,40 @@ from tqdm import trange
 # 导入Transformers库中的AutoModelForZeroShotImageClassification类，用于零样本图像分类任务
 from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 from clip import clip
+from transformers import CLIPProcessor, CLIPModel
 
 from config import *
 
 logger = logging.getLogger(__name__)
 
-# 修改模型加载部分
 def load_clip_model():
-    model, preprocess = clip.load(MODEL_NAME, device=DEVICE)
+    # 检查是否存在转换后的 MindSpore 模型
     if os.path.exists(MODEL_WEIGHT_PATH):
-        param_dict = load_checkpoint(MODEL_WEIGHT_PATH)
-        load_param_into_net(model, param_dict)
+        model, _ = clip.load("ViT-B/32", device=DEVICE)
+        param_dict = ms.load_checkpoint(MODEL_WEIGHT_PATH)
+        ms.load_param_into_net(model, param_dict)
+        logger.info(f"Loaded {len(param_dict)} parameters from {MODEL_WEIGHT_PATH}")
+        processor = CLIPProcessor.from_pretrained(MODEL_NAME)
     else:
-        logger.warning(f"模型权重文件 {MODEL_WEIGHT_PATH} 不存在，使用默认初始化权重。")
-    return model, preprocess
+        # 如果不存在，则从 PyTorch 模型转换
+        pt_path = "./models/ViT-B-32.pt"
+        if not os.path.exists(pt_path):
+            raise FileNotFoundError(f"PyTorch model file not found: {pt_path}")
+        
+        from convert_model import convert_pytorch_to_mindspore
+        convert_pytorch_to_mindspore(pt_path, MODEL_WEIGHT_PATH)
+        
+        model, _ = clip.load("ViT-B/32", device=DEVICE)
+        param_dict = ms.load_checkpoint(MODEL_WEIGHT_PATH)
+        ms.load_param_into_net(model, param_dict)
+        processor = CLIPProcessor.from_pretrained(MODEL_NAME)
+    
+    return model, processor
 
-model, preprocess = load_clip_model()
+model, processor = load_clip_model()
 
 # 修改设备配置
 ms.set_context(device_target=DEVICE)
-
-processor = AutoProcessor.from_pretrained(MODEL_NAME)
 
 logger.info("Model loaded.")
 
@@ -56,12 +70,12 @@ def get_image_feature(images):
     feature = None
     try:
         if isinstance(images, list):
-            inputs = [preprocess(img) for img in images]
-            inputs = ms.Tensor(np.stack(inputs))
+            inputs = processor(images=images, return_tensors="np", padding=True)['pixel_values']
         else:
-            inputs = ms.Tensor(preprocess(images).unsqueeze(0))
+            inputs = processor(images=images, return_tensors="np")['pixel_values']
+        inputs = Tensor(inputs, dtype=ms.float32)
         feature = model.encode_image(inputs)
-        return feature.asnumpy()
+        return feature.asnumpy()  # 确保返回numpy数组
     except Exception as e:
         logger.warning(f"处理图片报错：{repr(e)}")
         traceback.print_stack()
@@ -100,12 +114,12 @@ def process_image(path, ignore_small_images=True):
     if image is None:
         return None
     feature = get_image_feature(image)
-    return feature
+    return feature  # 现在返回的是numpy数组
 
 
 def process_images(path_list, ignore_small_images=True):
     """
-    处理图片，返回图片特征
+    处理图片，回图片特征
     :param path_list: string, 图片路径列表
     :param ignore_small_images: bool, 是否忽略尺寸过小的图片
     :return: <class 'numpy.nparray'>, 图片特征
@@ -120,7 +134,7 @@ def process_images(path_list, ignore_small_images=True):
     if not images:
         return None, None
     feature = get_image_feature(images)
-    return path_list, feature
+    return path_list, feature  # 现在返回的feature是numpy数组
 
 
 def process_web_image(url):
@@ -169,7 +183,7 @@ def process_video(path):
     处理视频并返回处理完成的数据
     返回一个生成器，每调用一次则返回视频下一个帧的数据
     :param path: string, 视频路径
-    :return: [int, <class 'numpy.nparray'>], [当前是第几帧（被采集的才算），图片特征]
+    :return: [int, <class 'numpy.nparray'>], [当前是第几帧（被集的才算），图片特征]
     """
     logger.info(f"处理视频中：{path}")
     try:
@@ -187,21 +201,19 @@ def process_video(path):
 
 
 def process_text(input_text):
-    """
-    预处理文字，返回文字特征
-    :param input_text: string, 被处理的字符串
-    :return: <class 'numpy.nparray'>,  文字特征
-    """
-    feature = None
     if not input_text:
+        logger.warning("输入文本为空")
         return None
     try:
+        # 使用 tokenize 方法处理文本
         text = clip.tokenize([input_text])
-        feature = model.encode_text(text).asnumpy()
+        # 直接使用 model 的 encode_text 方法
+        text_features = model.encode_text(text)
+        return text_features.asnumpy().squeeze()  # 移除多余的维度
     except Exception as e:
         logger.warning(f"处理文字报错：{repr(e)}")
         traceback.print_stack()
-    return feature
+    return None
 
 
 def match_text_and_image(text_feature, image_feature):
@@ -209,7 +221,7 @@ def match_text_and_image(text_feature, image_feature):
     匹配文字和图片，返回余弦相似度
     :param text_feature: <class 'numpy.nparray'>, 文字特征
     :param image_feature: <class 'numpy.nparray'>, 图片特征
-    :return: <class 'numpy.nparray'>, 文字和图片的余弦相似度，shape=(1, 1)
+    :return: <class 'numpy.nparray'>, 文字和图片的余弦相似度shape=(1, 1)
     """
     score = (image_feature @ text_feature.T) / (
             np.linalg.norm(image_feature) * np.linalg.norm(text_feature)
@@ -223,7 +235,10 @@ def normalize_features(features):
     :param features: [<class 'numpy.nparray'>], 特征
     :return: <class 'numpy.nparray'>, 归一化后的特征
     """
-    return ops.L2Normalize(axis=1)(ms.Tensor(features)).asnumpy()
+    features_tensor = Tensor(features, dtype=ms.float32)
+    norm = ops.norm(features_tensor, dim=-1, keepdim=True)
+    normalized_features = features_tensor / norm
+    return normalized_features.asnumpy()
 
 
 def multithread_normalize(features):
@@ -258,18 +273,32 @@ def match_batch(
     :param negative_threshold: int/float, 反向提示分数阈值，低于此分数才显示
     :return: [<class 'numpy.nparray'>], 提示词和每个图片余弦相似度列表，里面每个元素的shape=(1, 1)，如果小于正向提示分数阈值或大于反向提示分数阈值则会置0
     """
-    image_features = ms.Tensor(image_features)
-    positive_feature = ms.Tensor(positive_feature)
+    # 确保输入是numpy数组
+    image_features = np.array(image_features)
+    positive_feature = np.array(positive_feature)
+    
+    # 归一化特征
+    image_features = normalize_features(image_features)
+    positive_feature = normalize_features(positive_feature)
+    
+    # 转换为MindSpore的Tensor
+    image_features = Tensor(image_features, dtype=ms.float32)
+    positive_feature = Tensor(positive_feature, dtype=ms.float32)
     
     # 计算余弦相似度
-    similarity = ops.cosine_similarity(image_features, positive_feature)
+    similarity = ops.matmul(image_features, positive_feature.T).squeeze()
     
     # 应用阈值
-    scores = ops.where(similarity < positive_threshold / 100, ms.Tensor(0), similarity)
+    scores = ops.where(similarity < Tensor(positive_threshold / 100, dtype=ms.float32), 
+                       Tensor(0, dtype=ms.float32), 
+                       similarity)
     
     if negative_feature is not None:
-        negative_feature = ms.Tensor(negative_feature)
-        negative_similarity = ops.cosine_similarity(image_features, negative_feature)
-        scores = ops.where(negative_similarity > negative_threshold / 100, ms.Tensor(0), scores)
+        negative_feature = normalize_features(np.array(negative_feature))
+        negative_feature = Tensor(negative_feature, dtype=ms.float32)
+        negative_similarity = ops.matmul(image_features, negative_feature.T).squeeze()
+        scores = ops.where(negative_similarity > Tensor(negative_threshold / 100, dtype=ms.float32), 
+                           Tensor(0, dtype=ms.float32), 
+                           scores)
     
     return scores.asnumpy()

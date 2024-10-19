@@ -7,7 +7,7 @@ from transformers import AutoModelForZeroShotImageClassification, AutoProcessor
 
 from config import *
 
-device_list = ["CPU", "GPU", "Ascend"]  # 推理设备，可选CPU、GPU、Ascend
+device_list = ["CPU", "GPU", "ASCEND", "DAVINCI"]  # 推理设备，可选CPU、GPU、ASCEND、DAVINCI
 image = Image.open("test.png")  # 测试图片。图片大小影响速度，一般相机照片为4000x3000。图片内容不影响速度。
 input_text = "This is a test sentence."  # 测试文本
 test_times = 100  # 测试次数

@@ -39,9 +39,9 @@ AUTO_SAVE_INTERVAL = int(os.getenv('AUTO_SAVE_INTERVAL', 100))  # 扫描自动�
 # 中文超大模型："OFA-Sys/chinese-clip-vit-huge-patch14"
 # 英文小模型： "openai/clip-vit-base-patch16"
 # 英文大模型："openai/clip-vit-large-patch14-336"
-MODEL_NAME = os.getenv('MODEL_NAME', "ViT-B/32")  # CLIP模型名称
-DEVICE = os.getenv('DEVICE', 'CPU')  # 'CPU', 'GPU', 'Ascend'
-MODEL_WEIGHT_PATH = os.getenv('MODEL_WEIGHT_PATH', "./ViT-B-32.ckpt")  # CLIP模型权重文件路径
+MODEL_NAME = "openai/clip-vit-base-patch32"  # Hugging Face 模型名称
+DEVICE = os.getenv('DEVICE', 'CPU').upper()  # 'CPU', 'GPU', 'ASCEND', 'DAVINCI'
+MODEL_WEIGHT_PATH = "./models/ViT-B-32.ckpt"  # 本地模型权重路径
 
 # *****搜索配置*****
 CACHE_SIZE = int(os.getenv('CACHE_SIZE', 64))  # 搜索缓存条目数量，表示缓存最近的n次搜索结果，0表示不缓存。缓存保存在内存中。图片搜索和视频搜索分开缓存。重启程序或扫描完成会清空缓存，或前端点击清空缓存（前端按钮已隐藏）。
@@ -55,7 +55,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')  # 日志等级：NOTSET/DEBUG/INFO/W
 # *****其它配置*****
 SQLALCHEMY_DATABASE_URL = os.getenv('SQLALCHEMY_DATABASE_URL', 'sqlite:///./instance/assets.db')  # 数据库保存路径
 TEMP_PATH = os.getenv('TEMP_PATH', './tmp')  # 临时目录路径
-VIDEO_EXTENSION_LENGTH = int(os.getenv('VIDEO_EXTENSION_LENGTH', 0))  # 下载视频片段时，视频前后增加的时长，单位为秒
+VIDEO_EXTENSION_LENGTH = int(os.getenv('VIDEO_EXTENSION_LENGTH', 0))  # 下载视片段时，视频前后增加的时长，单位为秒
 ENABLE_LOGIN = os.getenv('ENABLE_LOGIN', 'False').lower() == 'true'  # 是否启用登录
 USERNAME = os.getenv('USERNAME', 'admin')  # 登录用户名
 PASSWORD = os.getenv('PASSWORD', 'MaterialSearch')  # 登录密码
